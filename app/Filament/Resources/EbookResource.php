@@ -7,26 +7,25 @@ use App\Models\Book;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
-use App\Enums\BookTypeEnum;
 use Filament\Resources\Resource;
+use Filament\Tables\Actions\Action;
 use Filament\Forms\Components\Hidden;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Tables\Filters\TernaryFilter;
-use App\Filament\Resources\BookResource\Pages;
+use App\Filament\Resources\EbookResource\Pages;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\BookResource\RelationManagers;
+use App\Filament\Resources\EbookResource\RelationManagers;
 
-class BookResource extends Resource
+class EbookResource extends Resource
 {
     protected static ?string $model = Book::class;
-    public static function getModelLabel(): string
-    {
-        return __('Book');
-    }
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     protected static ?string $navigationGroup = 'Livros e Empréstimos';
+
+    protected static ?string $navigationLabel = 'Ebooks';
 
     public static function form(Form $form): Form
     {
@@ -55,9 +54,12 @@ class BookResource extends Resource
                 Forms\Components\Select::make('language_id')
                     ->relationship('language', 'name')
                     ->required(),
-                    Hidden::make('type')
-                    ->default('physical')
-                         ->required(), 
+               Hidden::make('type')
+               ->default('e-book')
+                    ->required(),
+                Forms\Components\FileUpload::make('file')
+                ->required()
+                    ->columnSpan(2),
                 Forms\Components\Toggle::make('available')
                 ->default(true)
                     ->required(),
@@ -69,32 +71,30 @@ class BookResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
-                Tables\Columns\ImageColumn::make('cover_image'),
-                Tables\Columns\TextColumn::make('edition')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('genre.name')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('year')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('language.name')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('type'),
-                Tables\Columns\IconColumn::make('available')
-                    ->boolean(),
+                ->searchable(),
+            Tables\Columns\ImageColumn::make('cover_image'),
+            Tables\Columns\TextColumn::make('edition')
+                ->searchable(),
+            Tables\Columns\TextColumn::make('genre.name')
+                ->numeric()
+                ->sortable(),
+            Tables\Columns\TextColumn::make('year')
+                ->sortable(),
+            Tables\Columns\TextColumn::make('language.name')
+                ->numeric()
+                ->sortable(),
             ])
             ->filters([
-                TernaryFilter::make('available')
-                    ->label('Availability')
-                    ->boolean()
-                    ->trueLabel('Only Available Books')
-                    ->falseLabel('Only Not Available Books')
-                    ->native(false),
+                //
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Action::make('download')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->label('Download')
+                    ->visible(fn (Book $record) => $record->type === 'e-book' && $record->file)
+                    ->url(fn (Book $record) => Storage::disk('public')->url($record->file))
+                    ->openUrlInNewTab(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -113,15 +113,15 @@ class BookResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListBooks::route('/'),
-            'create' => Pages\CreateBook::route('/create'),
-            'edit' => Pages\EditBook::route('/{record}/edit'),
+            'index' => Pages\ListEbooks::route('/'),
+            'create' => Pages\CreateEbook::route('/create'),
+            'edit' => Pages\EditEbook::route('/{record}/edit'),
         ];
     }
 
     public static function getEloquentQuery(): Builder
     {
-        $query =  parent::getEloquentQuery()->where('type', 'physical');
+        $query =  parent::getEloquentQuery()->where('type', 'e-book');
 
         return $query;
     }

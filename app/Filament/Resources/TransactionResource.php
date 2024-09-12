@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use Carbon\Carbon;
 use Filament\Forms;
 use App\Models\Book;
 use App\Models\User;
@@ -56,9 +57,14 @@ class TransactionResource extends Resource
                                             ->default(function () {
                                                 return Auth::id();
                                             })->required(),
-                                        Select::make('book_id')
-                                            ->options(fn() => Book::whereAvailable(true)
-                                                ->pluck('name', 'id'))
+                                            Select::make('book_id')
+                                            ->options(function () {
+                                                return Book::query()
+                                                    ->where('type', 'physical')
+                                                    ->where('available', true)
+                                                    ->pluck('name', 'id')
+                                                    ->toArray();
+                                            })
                                             ->native(false)
                                             ->searchable()
                                             ->preload()
@@ -66,6 +72,7 @@ class TransactionResource extends Resource
                                             ->required(),
                                         DatePicker::make('borrowed_date')
                                             ->live()
+                                            ->default(Carbon::today())
                                             ->required(),
                                         TextInput::make('borrowed_for')
                                             ->suffix('Days')
